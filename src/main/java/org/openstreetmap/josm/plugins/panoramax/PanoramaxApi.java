@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.jcs3.access.CacheAccess;
@@ -54,8 +56,42 @@ public final class PanoramaxApi {
             return null;
         }
         final PanoramaxCache cache = cacheMap.computeIfAbsent(api, PanoramaxCache::new);
-        return cache.collections().get(id,
-                () -> PanoramaxDeserializer.parseCollection(getJson(buildUri(api, "collections", id, "items"))));
+        return cache.collections().get(id, () -> getRealCollection(api, id));
+    }
+
+    @Nonnull
+    private static PanoramaxCollection getRealCollection(@Nonnull String api, @Nonnull String id) {
+        final List<PanoramaxCollection> collections = new ArrayList<>(1);
+        PanoramaxLink next = new PanoramaxLink(buildUri(api, "collections", id, "items"), "", "", "");
+        do {
+            PanoramaxCollection current = PanoramaxDeserializer.parseCollection(getJson(next.href()));
+            collections.add(current);
+            next = getNext(current.getLinks());
+        } while (next != null);
+        if (collections.size() == 1) {
+            return collections.getFirst();
+        }
+        final List<PanoramaxLink> links = new ArrayList<>(4);
+        final List<PanoramaxImage> images = new ArrayList<>();
+        for (PanoramaxCollection collection : collections) {
+            for (PanoramaxLink link : collection.getLinks()) {
+                if (!links.contains(link)) {
+                    links.add(link);
+                }
+            }
+            images.addAll(collection);
+        }
+        return new PanoramaxCollection(links.toArray(PanoramaxLink[]::new), images.toArray(PanoramaxImage[]::new));
+    }
+
+    @Nullable
+    private static PanoramaxLink getNext(@Nonnull PanoramaxLink... links) {
+        for (PanoramaxLink link : links) {
+            if ("next".equals(link.rel())) {
+                return link;
+            }
+        }
+        return null;
     }
 
     @Nullable

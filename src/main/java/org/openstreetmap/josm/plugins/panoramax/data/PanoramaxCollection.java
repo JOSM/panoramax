@@ -11,9 +11,19 @@ import java.util.Arrays;
 
 public final class PanoramaxCollection extends AbstractList<PanoramaxImage> implements Serializable {
     private final PanoramaxImage[] images;
+    private final PanoramaxLink[] links;
 
     public PanoramaxCollection(PanoramaxLink[] links, PanoramaxImage... features) {
         this.images = Arrays.copyOf(features, features.length);
+        this.links = links;
+    }
+
+    /**
+     * Get the links for this collection
+     * @return The links
+     */
+    public PanoramaxLink[] getLinks() {
+        return this.links;
     }
 
     @Override
