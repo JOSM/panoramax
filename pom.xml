@@ -18,6 +18,7 @@
     <plugin.test.dir>${project.basedir}/src/test/java</plugin.test.dir>
     <plugin.class>org.openstreetmap.josm.plugins.panoramax.PanoramaxPlugin</plugin.class>
     <plugin.main.version>19387</plugin.main.version>
+    <plugin.minimum.java.version>${maven.compiler.release}</plugin.minimum.java.version>
   </properties>
   <build>
     <plugins>
