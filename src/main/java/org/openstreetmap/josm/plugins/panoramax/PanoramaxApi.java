@@ -117,28 +117,33 @@ public final class PanoramaxApi {
             return null;
         }
         final PanoramaxCache cache = cacheMap.computeIfAbsent(api, PanoramaxCache::new);
-        return cache.images().get(imageId, () -> {
-            final PanoramaxImage image = getItem(api, collectionId, imageId);
-            if (image == null) {
-                return null;
-            }
-            final PanoramaxLink link = image.getBestImageLink();
-            if (link != null) {
-                HttpClient client = null;
-                try {
-                    client = HttpClient.create(link.href().toURL());
-                    final HttpClient.Response response = client.connect();
-                    return new BufferedImageCacheEntry(response.getContent().readAllBytes());
-                } catch (IOException e) {
-                    isLive(api, true);
-                    Logging.error(e);
-                } finally {
-                    if (client != null)
-                        client.disconnect();
+        try {
+            return cache.images().get(imageId, () -> {
+                final PanoramaxImage image = getItem(api, collectionId, imageId);
+                if (image == null) {
+                    return null;
                 }
-            }
-            return null;
-        }).getImage();
+                final PanoramaxLink link = image.getBestImageLink();
+                if (link != null) {
+                    HttpClient client = null;
+                    try {
+                        client = HttpClient.create(link.href().toURL());
+                        final HttpClient.Response response = client.connect();
+                        return new BufferedImageCacheEntry(response.getContent().readAllBytes());
+                    } catch (IOException e) {
+                        isLive(api, true);
+                        Logging.error(e);
+                    } finally {
+                        if (client != null)
+                            client.disconnect();
+                    }
+                }
+                return null;
+            }).getImage();
+        } catch (NullPointerException npe) {
+            Logging.trace(npe);
+        }
+        return null;
     }
 
     /**

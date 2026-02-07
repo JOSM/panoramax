@@ -11,6 +11,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +29,7 @@ import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxCollection;
 import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxImage;
 import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxLink;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.date.DateUtils;
 
 public class PanoramaxJosmImage implements IImageEntry<PanoramaxJosmImage> {
     private final PanoramaxImage image;
@@ -120,7 +127,21 @@ public class PanoramaxJosmImage implements IImageEntry<PanoramaxJosmImage> {
 
     @Override
     public String getDisplayName() {
-        return "";
+        final StringBuilder sb = new StringBuilder();
+        boolean added = false;
+        for (var provider : this.image.providers()) {
+            if (added)
+                sb.append(", ");
+            sb.append(provider.name());
+            added = true;
+        }
+        if (this.hasExifTime()) {
+            sb.append(" - ");
+            sb.append(DateUtils.getDateTimeFormatter(FormatStyle.SHORT, FormatStyle.MEDIUM)
+                    .format(this.getExifGpsInstant()));
+        }
+
+        return sb.toString();
     }
 
     @Override
@@ -159,96 +180,131 @@ public class PanoramaxJosmImage implements IImageEntry<PanoramaxJosmImage> {
 
     @Override
     public Double getSpeed() {
-        return 0.0;
+        // TODO: Use this.image.properties().exif().ExifGPSInfoGPSSpeedRef()?
+        return parseRational64u(this.image.properties().exif().ExifGPSInfoGPSSpeed());
     }
 
     @Override
     public Double getElevation() {
-        return 0.0;
+        return parseRational64u(this.image.properties().exif().ExifGPSInfoGPSAltitude());
     }
 
     @Override
     public Integer getGpsDiffMode() {
-        return 0;
+        return null;
     }
 
     @Override
     public Integer getGps2d3dMode() {
-        return 0;
+        return null;
     }
 
     @Override
     public Double getExifGpsDop() {
-        return 0.0;
+        return null;
     }
 
     @Override
     public String getExifGpsDatum() {
-        return "";
+        return null;
     }
 
     @Override
     public String getExifGpsProcMethod() {
-        return "";
+        return this.image.properties().exif().ExifGPSInfoGPSProcessingMethod();
     }
 
     @Override
     public Double getExifImgDir() {
-        return 0.0;
+        // TODO use this.image.properties().exif().ExifGPSInfoGPSImgDirectionRef();
+        return parseRational64u(this.image.properties().exif().ExifGPSInfoGPSImgDirection());
     }
 
     @Override
     public Double getExifGpsTrack() {
-        return 0.0;
+        return null;
     }
 
     @Override
     public Double getExifHPosErr() {
-        return 0.0;
+        return null;
     }
 
     @Override
     public boolean hasExifTime() {
-        return false;
+        return this.image.properties().exif().ExifImageDateTime() != null;
     }
 
     @Override
     public Instant getExifInstant() {
-        return null;
+        return parseDateTime(this.image.properties().exif().ExifImageDateTime());
     }
 
     @Override
     public boolean hasGpsTime() {
-        return false;
+        return this.image.properties().exif().ExifGPSInfoGPSTimeStamp() != null;
     }
 
     @Override
     public Instant getGpsInstant() {
-        return null;
+        return this.getExifGpsInstant();
     }
 
     @Override
     public Instant getExifGpsInstant() {
-        return null;
+        final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy:MM:dd").withZone(ZoneOffset.UTC);
+        final TemporalAccessor ta = dtf.parse(this.image.properties().exif().ExifGPSInfoGPSDateStamp());
+        final String[] parts = this.image.properties().exif().ExifGPSInfoGPSTimeStamp().split(" ", 3);
+        final double[] hhmmss = new double[3];
+        for (int i = 0; i < parts.length; i++) {
+            hhmmss[i] = parseRational64u(parts[i]);
+        }
+        final ZonedDateTime zdt = ZonedDateTime.of(ta.get(ChronoField.YEAR), ta.get(ChronoField.MONTH_OF_YEAR),
+                ta.get(ChronoField.DAY_OF_MONTH), (int) Math.round(hhmmss[0]), (int) Math.round(hhmmss[1]),
+                (int) Math.round(hhmmss[2]), 0, ZoneOffset.UTC);
+        return zdt.toInstant();
     }
 
     @Override
     public String getIptcCaption() {
-        return "";
+        return null;
     }
 
     @Override
     public String getIptcHeadline() {
-        return "";
+        return null;
     }
 
     @Override
     public List<String> getIptcKeywords() {
-        return List.of();
+        return null; // Yes, we want to return null.
     }
 
     @Override
     public String getIptcObjectName() {
-        return "";
+        return null;
+    }
+
+    private static Double parseRational64u(String value) {
+        if (value != null) {
+            try {
+                if (value.contains("/")) {
+                    String[] split = value.split("/", 2);
+                    return Double.parseDouble(split[0]) / Double.parseDouble(split[1]);
+                } else {
+                    return Double.parseDouble(value);
+                }
+            } catch (NumberFormatException nfe) {
+                Logging.trace(nfe);
+            }
+        }
+        return null;
+    }
+
+    private static Instant parseDateTime(CharSequence value) {
+        // TODO: is this normalized to UTC in all cases?
+        final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss").withZone(ZoneOffset.UTC);
+        final ZonedDateTime zdt = ZonedDateTime.parse(value, dtf);
+        return zdt.toInstant();
     }
 }
