@@ -153,6 +153,8 @@ final class PanoramaxDeserializer {
                     yield (T) Double.valueOf(number.doubleValue());
                 } else if (float.class.equals(clazz) || Float.class.equals(clazz)) {
                     yield (T) Float.valueOf((float) number.doubleValue());
+                } else if (String.class.equals(clazz)) {
+                    yield (T) number.toString(); // Exif properites seems to go between int and string for some values.
                 } else {
                     throw new IllegalArgumentException("Unknown class type: " + clazz.getCanonicalName());
                 }
