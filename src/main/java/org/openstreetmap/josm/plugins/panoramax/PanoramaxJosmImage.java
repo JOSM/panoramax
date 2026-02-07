@@ -140,6 +140,11 @@ public class PanoramaxJosmImage implements IImageEntry<PanoramaxJosmImage> {
 
     @Override
     public URI getImageURI() {
+        for (var link : this.image.links()) {
+            if ("via".equals(link.rel())) {
+                return link.href().resolve("?focus=pic&pic=" + this.image.id());
+            }
+        }
         return this.image.getBestImageLink().href();
     }
 
