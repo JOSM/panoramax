@@ -23,6 +23,7 @@ import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxImage;
 import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxLink;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.bugreport.BugReport;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -56,7 +57,11 @@ public final class PanoramaxApi {
             return null;
         }
         final PanoramaxCache cache = cacheMap.computeIfAbsent(api, PanoramaxCache::new);
-        return cache.collections().get(id, () -> getRealCollection(api, id));
+        try {
+            return cache.collections().get(id, () -> getRealCollection(api, id));
+        } catch (RuntimeException e) {
+            throw BugReport.intercept(e).put("panoramax api", api).put("panoramax id", id);
+        }
     }
 
     @Nonnull

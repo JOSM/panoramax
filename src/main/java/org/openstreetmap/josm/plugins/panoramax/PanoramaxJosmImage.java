@@ -20,6 +20,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.openstreetmap.josm.data.coor.ILatLon;
 import org.openstreetmap.josm.data.imagery.street_level.IImageEntry;
@@ -252,8 +253,18 @@ public class PanoramaxJosmImage implements IImageEntry<PanoramaxJosmImage> {
 
     @Override
     public Instant getExifGpsInstant() {
-        final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy:MM:dd").withZone(ZoneOffset.UTC);
-        final TemporalAccessor ta = dtf.parse(this.image.properties().exif().ExifGPSInfoGPSDateStamp());
+        final Pattern exifGpxPattern = Pattern.compile("\\d{4}:\\d{2}:\\d{2}");
+        final Pattern isoPattern = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+        final DateTimeFormatter dtf;
+        final String input = this.image.properties().exif().ExifGPSInfoGPSDateStamp();
+        if (exifGpxPattern.matcher(input).matches()) {
+            dtf = DateTimeFormatter.ofPattern("yyyy:MM:dd").withZone(ZoneOffset.UTC);
+        } else if (isoPattern.matcher(input).matches()) {
+            dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneOffset.UTC);
+        } else {
+            throw new IllegalArgumentException("Could not parse non-standard exif information: " + input);
+        }
+        final TemporalAccessor ta = dtf.parse(input);
         final String[] parts = this.image.properties().exif().ExifGPSInfoGPSTimeStamp().split(" ", 3);
         final double[] hhmmss = new double[3];
         for (int i = 0; i < parts.length; i++) {
