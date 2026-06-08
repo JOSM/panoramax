@@ -21,6 +21,7 @@ import org.openstreetmap.josm.data.cache.JCSCacheManager;
 import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxCollection;
 import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxImage;
 import org.openstreetmap.josm.plugins.panoramax.data.PanoramaxLink;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
@@ -67,12 +68,13 @@ public final class PanoramaxApi {
     @Nonnull
     private static PanoramaxCollection getRealCollection(@Nonnull String api, @Nonnull String id) {
         final List<PanoramaxCollection> collections = new ArrayList<>(1);
+        final int maxLink = Config.getPref().getInt("panoramax.max.next.link", 10);
         PanoramaxLink next = new PanoramaxLink(buildUri(api, "collections", id, "items"), "", "", "");
         do {
             PanoramaxCollection current = PanoramaxDeserializer.parseCollection(getJson(next.href()));
             collections.add(current);
             next = getNext(current.getLinks());
-        } while (next != null);
+        } while (next != null && collections.size() < maxLink);
         if (collections.size() == 1) {
             return collections.getFirst();
         }
