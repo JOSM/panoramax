@@ -257,6 +257,9 @@ public class PanoramaxJosmImage implements IImageEntry<PanoramaxJosmImage> {
         final Pattern isoPattern = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
         final DateTimeFormatter dtf;
         final String input = this.image.properties().exif().ExifGPSInfoGPSDateStamp();
+        if (input == null) {
+            null;
+        }
         if (exifGpxPattern.matcher(input).matches()) {
             dtf = DateTimeFormatter.ofPattern("yyyy:MM:dd").withZone(ZoneOffset.UTC);
         } else if (isoPattern.matcher(input).matches()) {
